@@ -1,0 +1,44 @@
+==============================================================================
+ GUÍA DE COMANDOS - LABORATORIO DE DATOS (SITS)
+==============================================================================
+
+PASO 1: CREAR EL ENTORNO VIRTUAL (Solo se hace 1 vez)
+------------------------------------------------------
+# Esto crea una carpeta "venv" aislada para no mezclar librerías con otros proyectos.
+python -m venv venv
+
+
+PASO 2: ENCENDER EL ENTORNO VIRTUAL (Se hace cada vez que abras la terminal)
+------------------------------------------------------
+# Para Windows (PowerShell):
+.\venv\Scripts\Activate
+
+# NOTA: Si sale error de "ejecución de scripts deshabilitada", ejecuta esto antes:
+# Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+
+# Si usaras Mac/Linux sería: source venv/bin/activate
+# Sabrás que está encendido porque verás un (venv) verde al inicio de la línea.
+
+
+PASO 3: INSTALAR LIBRERÍAS (Solo se hace 1 vez o al agregar nuevas librerías)
+------------------------------------------------------
+# Descarga todo lo que listamos en requirements.txt
+pip install -r requirements.txt
+
+
+PASO 4: EJECUTAR LA APLICACIÓN
+------------------------------------------------------
+# Este comando levanta el servidor local de Streamlit
+streamlit run app.py
+
+# Si quieres detener el servidor, presiona: Ctrl + C en la terminal.
+
+
+==============================================================================
+ TIPS ADICIONALES
+==============================================================================
+# - Si agregas una librería nueva (ej. tensorflow), instálala y luego actualiza el requirements:
+#   pip freeze > requirements.txt
+
+# - Para ver qué tienes instalado:
+#   pip list

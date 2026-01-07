@@ -1,0 +1,77 @@
+Contexto de los arhcivos originales a migrar:
+**********************************************************************************************************************************************************************
+He analizado a profundidad tus archivos (generar_datos_final.py, motor_estrategico_total.py, app.py, app_war_room.py).
+
+Lo que tienes actualmente es un Motor de Inteligencia Territorial basado en Estadística Descriptiva y Heurística Ponderada. No usa "IA" compleja (como redes neuronales) todavía, sino reglas de negocio muy sólidas basadas en metodologías de la ONU (Sendai, MCR2030) y CONEVAL.
+
+Aquí tienes la Abstracción del Proceso para tu Laboratorio de Datos, dividido en 5 pasos memorables para que sepas qué funciones programar en tu backend.
+
+🧪 El Proceso "Data Lab": De Datos Crudos a Estrategia
+Este es el flujo que implementaremos en la arquitectura nueva, basado en lo que hacen tus scripts actuales.
+
+Paso 1: La Higiene (Ingesta y Estandarización)
+Objetivo: Que los datos entren limpios al sistema, sin importar si vienen de un Excel sucio o un CSV de gobierno.
+
+Funciones detectadas en tu código:
+
+Detección de Encoding: Tus scripts intentan leer en latin-1 y si fallan, usan utf-8.
+
+Normalización de Headers: Conviertes todo a MAYÚSCULAS, quitas espacios vacíos (strip) y eliminas acentos/caracteres raros (ej. AÑO -> ANO).
+
+Saneamiento de IDs: Construyes la llave primaria CVEGEO concatenando columnas (Entidad + Mun + Loc + Ageb + Manzana). Esto es vital para los mapas.
+
+Imputación de Ceros: Rellenas valores nulos (NaN) con 0 para que las sumas no fallen.
+
+Paso 2: La Proyección (Ingeniería de Variables)
+Objetivo: Crear datos que no existen en el archivo original pero que son necesarios para la realidad actual.
+
+Funciones detectadas:
+
+Proyección Temporal: Multiplicas la población del Censo 2020 por un FACTOR_CRECIMIENTO (ej. 1.048) para estimar la población 2025/2026.
+
+Clasificación Binaria: Etiquetas zonas como Urbano o Rural basándote en catálogos de claves.
+
+Paso 3: La Alquimia (Cálculo de Indicadores)
+Objetivo: Convertir columnas "aburridas" (ej. "VPH_PISOTI") en Índices de Carencia. Aquí es donde vive tu "Receta Secreta".
+
+Técnicas Estadísticas usadas:
+
+Normalización (Ratios): Conviertes absolutos a relativos.
+
+Ejemplo: Rezago Educativo = (Población Analfabeta + Sin Secundaria) / Población Total.
+
+Índices Compuestos (Promedios): Creas un "Índice de Pobreza" promediando varias carencias (Agua + Drenaje + Luz + Piso).
+
+Ponderación Heurística: Das más peso a ciertas variables según el criterio del experto.
+
+Ejemplo: En tu código, VPH_1CUARTO (hacinamiento) se multiplica por 1.5 (pesa más que el piso de tierra).
+
+Scaling (Min-Max/Clipping): Fuerzas a que los resultados siempre estén entre 0 y 1 (clip(0, 1)) para poder hacer semáforos porcentuales.
+
+Indices Multidimensionales (Meta-Scores): El SCORE_PRIORIDAD es el promedio de tres grandes mundos: (Indice Pobreza + Indice Riesgo Social + Indice Sendai) / 3.
+
+Paso 4: El Tejido Espacial (Cruce Geográfico)
+Objetivo: Unir el mundo social con el mundo político/físico.
+
+Funciones detectadas:
+
+Merge Relacional: Unes los datos estadísticos (DataFrame) con los mapas (GeoDataFrame) usando la llave CVEGEO.
+
+Spatial Join (Cruce Espacial): Esta es la función más potente en tu app_war_room.py. Determinas "Qué puntos (localidades) caen dentro de qué polígono (Sección Electoral)".
+
+Lógica: gpd.sjoin(puntos_sociales, poligonos_politicos, op='within').
+
+Resultado: Ahora sabes que la "Comunidad X" con alta pobreza pertenece a la "Sección Y" que ganó el Partido Z.
+
+Paso 5: La Inteligencia Visual (Dashboard)
+Objetivo: Mostrar los resultados para tomar decisiones.
+
+Funcionalidades a migrar a la nueva app:
+
+Semáforos Dinámicos: Asignar colores (Rojo, Naranja, Verde) según cuartiles estadísticos (ej. "Top 25% más crítico").
+
+Priorización (Ranking): Ordenar la tabla de mayor a menor impacto y mostrar el "Top 50".
+
+Mapas de Calor (Choropleth): Pintar polígonos según la intensidad de una variable.
+
+**********************************************************************************************************************************************************************

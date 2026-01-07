@@ -1,0 +1,34 @@
+data_lab_project/
+│
+├── app.py                   # 🚀 Punto de entrada (Main). Solo configura la página y navegación.
+├── requirements.txt         # Lista de librerías (pandas, numpy, scikit-learn, streamlit, etc.)
+├── .env                     # Variables de entorno (si usas API keys de OpenAI/Gemini, etc.)
+│
+├── data/                    # Almacenamiento local temporal (opcional, si no usas DB)
+│   ├── raw/                 # Archivos subidos originales
+│   └── processed/           # Archivos generados para descargar
+│
+├── src/                     # 🧠 CÓDIGO FUENTE (El cerebro del proyecto)
+│   ├── __init__.py
+│   │
+│   ├── core/                # Lógica pura de Python (Backend "Pesado")
+│   │   ├── __init__.py
+│   │   ├── data_loader.py   # Funciones para leer CSV, XLSX, limpiar headers, detectar tipos.
+│   │   ├── statistics.py    # Aquí irán las funciones del archivo .py que me pasarás.
+│   │   ├── ai_processor.py  # Funciones de IA (limpieza inteligente, imputación, etc.)
+│   │   └── exporter.py      # Generación de reportes finales y archivos de salida.
+│   │
+│   ├── database/            # Capa de persistencia (SQLite)
+│   │   ├── __init__.py
+│   │   ├── db_manager.py    # Conexión y queries a SQLite.
+│   │   └── models.py        # Definición de tablas (Proyectos, Historial de cambios).
+│   │
+│   └── ui/                  # Componentes de Streamlit (Frontend "Sencillo")
+│       ├── __init__.py
+│       ├── sidebar.py       # Menú lateral, carga de archivos.
+│       ├── dashboard.py     # Visualización de datos (gráficas).
+│       └── transformations.py # Interfaz para aplicar las funciones estadísticas.
+│
+└── utils/                   # Utilidades generales
+    ├── helpers.py           # Funciones pequeñas de ayuda (formato de fecha, logs).
+    └── state_manager.py     # Manejo del st.session_state (CRÍTICO en Streamlit).

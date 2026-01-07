@@ -1,0 +1,29 @@
+# --- INTERFAZ Y WEB ---
+streamlit                   # El frontend de tu laboratorio
+streamlit-folium            # Para integrar mapas en Streamlit
+watchdog                    # Hace que Streamlit recargue más rápido al editar
+
+# --- PROCESAMIENTO DE DATOS ---
+pandas                      # Manipulación de tablas
+numpy                       # Cálculos matemáticos rápidos
+openpyxl                    # Para leer y escribir archivos Excel (.xlsx)
+
+# --- CIENCIA DE DATOS E IA ---
+scikit-learn                # Algoritmos de Machine Learning y preprocesamiento
+scipy                       # Funciones estadísticas avanzadas
+
+# --- GEOSPATIAL (MAPAS) ---
+geopandas                   # Pandas para datos geográficos
+folium                      # Mapas interactivos
+shapely                     # Geometría plana (polígonos, puntos)
+fiona                       # Lectura de archivos shapefile/geojson
+
+# --- VISUALIZACIÓN ---
+plotly                      # Gráficas interactivas avanzadas
+matplotlib                  # Gráficas estáticas base
+
+# --- UTILIDADES ---
+fpdf                        # Generación de reportes PDF
+python-dotenv               # Manejo de variables de entorno
+
+sqlalchemy                  # El puente entre Pandas y la base de datos SQLite
