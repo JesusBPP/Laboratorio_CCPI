@@ -1,29 +1,24 @@
-# --- INTERFAZ Y WEB ---
-streamlit                   # El frontend de tu laboratorio
-streamlit-folium            # Para integrar mapas en Streamlit
-watchdog                    # Hace que Streamlit recargue más rápido al editar
+# --- Núcleo de la App ---
+streamlit                   # La interfaz web
+pandas>=2.0.0               # Manejo de datos (Versión 2.0+ es vital para integración con Arrow)
+numpy                       # Cálculos numéricos base
 
-# --- PROCESAMIENTO DE DATOS ---
-pandas                      # Manipulación de tablas
-numpy                       # Cálculos matemáticos rápidos
-openpyxl                    # Para leer y escribir archivos Excel (.xlsx)
+# --- Motores de Datos (Arrow & Parquet) ---
+pyarrow                     # La librería OFICIAL de Apache Arrow y motor para Parquet
+fastparquet                 # (Opcional) Motor alternativo, pero pyarrow suele bastar.
 
-# --- CIENCIA DE DATOS E IA ---
-scikit-learn                # Algoritmos de Machine Learning y preprocesamiento
-scipy                       # Funciones estadísticas avanzadas
+# --- Manejo de Archivos Excel ---
+openpyxl                    # Para leer archivos .xlsx
+xlsxwriter                  # Para escribir archivos .xlsx (descargas)
 
-# --- GEOSPATIAL (MAPAS) ---
-geopandas                   # Pandas para datos geográficos
-folium                      # Mapas interactivos
-shapely                     # Geometría plana (polígonos, puntos)
-fiona                       # Lectura de archivos shapefile/geojson
+# --- Procesamiento de Lenguaje Natural (NLP) ---
+nltk                        # Para Stemming, Lemmatization y Tokenización
 
-# --- VISUALIZACIÓN ---
-plotly                      # Gráficas interactivas avanzadas
-matplotlib                  # Gráficas estáticas base
+# --- Utilidades del Sistema ---
+python-dotenv               # Para leer el archivo .env
+watchdog                    # Para que Streamlit detecte cambios en archivos más rápido
+lxml
 
-# --- UTILIDADES ---
-fpdf                        # Generación de reportes PDF
-python-dotenv               # Manejo de variables de entorno
-
-sqlalchemy                  # El puente entre Pandas y la base de datos SQLite
+# pip install -r requirements.txt
+# .\venv\Scripts\activate
+# streamlit run app.py --theme.base="light"

@@ -1,77 +1,70 @@
 Contexto de los arhcivos originales a migrar:
 **********************************************************************************************************************************************************************
-He analizado a profundidad tus archivos (generar_datos_final.py, motor_estrategico_total.py, app.py, app_war_room.py).
+Tecnologías, Python, streamlit, Apache Arrow (Para la manipulación de datos, vive en RAM), Apache Parquet (Para guardar datos, vive en disco duro), TopJson (Tipos de archivo a usar en el proyecto)
 
-Lo que tienes actualmente es un Motor de Inteligencia Territorial basado en Estadística Descriptiva y Heurística Ponderada. No usa "IA" compleja (como redes neuronales) todavía, sino reglas de negocio muy sólidas basadas en metodologías de la ONU (Sendai, MCR2030) y CONEVAL.
-
-Aquí tienes la Abstracción del Proceso para tu Laboratorio de Datos, dividido en 5 pasos memorables para que sepas qué funciones programar en tu backend.
-
-🧪 El Proceso "Data Lab": De Datos Crudos a Estrategia
-Este es el flujo que implementaremos en la arquitectura nueva, basado en lo que hacen tus scripts actuales.
-
-Paso 1: La Higiene (Ingesta y Estandarización)
-Objetivo: Que los datos entren limpios al sistema, sin importar si vienen de un Excel sucio o un CSV de gobierno.
-
-Funciones detectadas en tu código:
-
-Detección de Encoding: Tus scripts intentan leer en latin-1 y si fallan, usan utf-8.
-
-Normalización de Headers: Conviertes todo a MAYÚSCULAS, quitas espacios vacíos (strip) y eliminas acentos/caracteres raros (ej. AÑO -> ANO).
-
-Saneamiento de IDs: Construyes la llave primaria CVEGEO concatenando columnas (Entidad + Mun + Loc + Ageb + Manzana). Esto es vital para los mapas.
-
-Imputación de Ceros: Rellenas valores nulos (NaN) con 0 para que las sumas no fallen.
-
-Paso 2: La Proyección (Ingeniería de Variables)
-Objetivo: Crear datos que no existen en el archivo original pero que son necesarios para la realidad actual.
-
-Funciones detectadas:
-
-Proyección Temporal: Multiplicas la población del Censo 2020 por un FACTOR_CRECIMIENTO (ej. 1.048) para estimar la población 2025/2026.
-
-Clasificación Binaria: Etiquetas zonas como Urbano o Rural basándote en catálogos de claves.
-
-Paso 3: La Alquimia (Cálculo de Indicadores)
-Objetivo: Convertir columnas "aburridas" (ej. "VPH_PISOTI") en Índices de Carencia. Aquí es donde vive tu "Receta Secreta".
-
-Técnicas Estadísticas usadas:
-
-Normalización (Ratios): Conviertes absolutos a relativos.
-
-Ejemplo: Rezago Educativo = (Población Analfabeta + Sin Secundaria) / Población Total.
-
-Índices Compuestos (Promedios): Creas un "Índice de Pobreza" promediando varias carencias (Agua + Drenaje + Luz + Piso).
-
-Ponderación Heurística: Das más peso a ciertas variables según el criterio del experto.
-
-Ejemplo: En tu código, VPH_1CUARTO (hacinamiento) se multiplica por 1.5 (pesa más que el piso de tierra).
-
-Scaling (Min-Max/Clipping): Fuerzas a que los resultados siempre estén entre 0 y 1 (clip(0, 1)) para poder hacer semáforos porcentuales.
-
-Indices Multidimensionales (Meta-Scores): El SCORE_PRIORIDAD es el promedio de tres grandes mundos: (Indice Pobreza + Indice Riesgo Social + Indice Sendai) / 3.
-
-Paso 4: El Tejido Espacial (Cruce Geográfico)
-Objetivo: Unir el mundo social con el mundo político/físico.
-
-Funciones detectadas:
-
-Merge Relacional: Unes los datos estadísticos (DataFrame) con los mapas (GeoDataFrame) usando la llave CVEGEO.
-
-Spatial Join (Cruce Espacial): Esta es la función más potente en tu app_war_room.py. Determinas "Qué puntos (localidades) caen dentro de qué polígono (Sección Electoral)".
-
-Lógica: gpd.sjoin(puntos_sociales, poligonos_politicos, op='within').
-
-Resultado: Ahora sabes que la "Comunidad X" con alta pobreza pertenece a la "Sección Y" que ganó el Partido Z.
-
-Paso 5: La Inteligencia Visual (Dashboard)
-Objetivo: Mostrar los resultados para tomar decisiones.
-
-Funcionalidades a migrar a la nueva app:
-
-Semáforos Dinámicos: Asignar colores (Rojo, Naranja, Verde) según cuartiles estadísticos (ej. "Top 25% más crítico").
-
-Priorización (Ranking): Ordenar la tabla de mayor a menor impacto y mostrar el "Top 50".
-
-Mapas de Calor (Choropleth): Pintar polígonos según la intensidad de una variable.
-
+El proyecto se trata de un manejador de datos, específicamente para limpiar y transformar datos. La primer fase del manejo de los datos es limpiar los datos y darles el formato que queramos.
+El programa debe admitir una gran variedad de tipos de archivos, por ejemplo, .csv .xlsx [PENDIENTE], los archivos los digiere el sistema y los podemos empezar a manejar internamente con Python.
+El sistema debe tener varias opciones en el sidebar:
+    1. Subir datos, esta pestaña nos muestra un box para subir el archivo desde nuestra computadora, después habrá un botón que sea procesar datos, este botón al ejecutarse debe leer los datos y cargarlos internamente en python.
+        Podremos subir 2 archivos y fucionarlos, esa también es una función dentro de subir datos. 
+        Se puede fucionar de 2 maneras el archivo, agregando renglones (los archivos tienen el mismo número de columnas y nada más se agregan los renglones) o agregar las columnas del segundo archivo al primer archivo.
+    2. Mostrar datos, esta pestaña nos permitirá mostrar los datos en una tabla, antes de mostrar cualquier dato, debemos configurar un menú que permita mostrar [Todos los datos, Elección de renglones y columnas a mostrar].
+        Limpiar datos, esta misma pestaña nos permitirá modificar el contenido de columnas específicas:
+        A. Cambiar formato del dato de la columna, el programa debe leer los diferentes tipos de formatos que tiene una columna y poner un ejemplo de cada uno, podemos elegir uno de los tipos de formatos o crear uno nuevo.
+        B. Si hay renglones que tengan valores núlos o inexistente el valor para alguna columna, poder agregar el valor a esas celdas vacías con, ya sea una de las siguientes, promedio, media, mediana del resto de valores de esa columna.
+        C. Generar una nueva columna a través de los datos del renglón o una nueva columna que se genere de varias columnas pero se repetiría el mismo dato en todos los renglones. Para esto ocuparíamos las funciones:
+            C-1. Promedio
+            C-2. Media
+            C-3. Mediana
+            C-4. Suma
+            C-5. Concatenar
+            C-6. Melting (Fundir/Despivotar)
+            C-7. Discretización (Binning): Convertir números continuos en "cajones" o categorías.
+            C-8. Stemming/Lemmatization: Cortar las palabras a su raíz (ej. "corriendo", "correré" -> "correr").
+            C-9. One-Hot Encoding: Convierte categorías en números binarios.
+        D. Obetener desviaciión estandar, promedio, Media, Mediana, de una columna Y SOLO MOSTRAR EL DATO SIN ALTERAR LOS DATOS.
+        E. Al final podremos descargar los datos en un tipo de archivo específico.
 **********************************************************************************************************************************************************************
+
+ARQUITECTURA DE ARCHIVOS
+
+Laboratorio_CCPI/
+│
+├── .streamlit/
+│   └── config.toml
+|
+├── .env                      # Variables de entorno
+├── app.py                    # Main: Configuración de página y enrutador de pestañas
+├── requirements.txt          # pyarrow, pandas, streamlit, nltk, openpyxl, etc.
+│
+├── data/                     # PERSISTENCIA (El "Disco Duro")
+│   ├── uploads/              # Temporal: Archivos crudos subidos por el usuario
+│   ├── parquet_db/           # Tu "Base de Datos": Archivos .parquet procesados
+│   └── exports/              # Salida: Archivos listos para descargar (.csv, .xlsx)
+│
+├── src/
+│   ├── __init__.py
+│   │
+│   ├── io/                   # INPUT/OUTPUT (El puente Disco <-> RAM Arrow)
+│   │   ├── __init__.py
+│   │   ├── loader.py         # Lee CSV/Excel/TopJson -> Convierte a PyArrow Table | Debe poder leer archivos JSON (JavaScript Object Notation), Apache Parquet, XML (eXtensible Markup Language), CSV, Excel, GeoJson y topjson.
+│   │   └── writer.py         # Guarda PyArrow Table -> Parquet/CSV
+│   │
+│   ├── engines/              # MOTORES DE PROCESAMIENTO (Manipulación en RAM)
+│   │   ├── __init__.py
+│   │   ├── cleaner.py        # Imputación (Media, Mediana), formatos de columna
+│   │   ├── merger.py         # Lógica de fusión (Append rows vs Join cols)
+│   │   ├── transformer.py    # Melting, One-Hot, Discretización
+│   │   ├── nlp_processor.py  # Stemming/Lemmatization (NLTK/Spacy)
+│   │   └── analyzer.py       # Estadísticas descriptivas (sin alterar datos)
+│   │
+│   └── ui/                   # INTERFAZ DE USUARIO
+│       ├── __init__.py
+│       ├── sidebar_manager.py # Controla la navegación y subida de archivos
+│       ├── tab_upload.py      # Pestaña 1: Lógica visual de carga y fusión
+│       ├── tab_viewer.py      # Pestaña 2: Visualización y filtros
+│       └── tab_cleaner.py     # Pestaña 2 (Subsección): Herramientas de limpieza
+│
+└── utils/
+    ├── session.py            # Gestión crítica de st.session_state (Mantiene Arrow vivo)
+    └── formatters.py         # Ayudas visuales para Streamlit

@@ -33,6 +33,20 @@ streamlit run app.py
 
 # Si quieres detener el servidor, presiona: Ctrl + C en la terminal.
 
+PASO 5: CONFIGURACIÓN DE BASE DE DATOS (SQLite)
+------------------------------------------------------
+# SQLite NO requiere instalación (ya viene con Python).
+# La base de datos será un archivo único (ej. "laboratorio_datos.db") que se 
+# creará automáticamente cuando ejecutemos el código por primera vez.
+
+# COMANDO OPCIONAL (Si creas un script de inicialización 'src/database/init_db.py'):
+# python -m src.database.init_db
+
+# TIP VISUAL:
+# Para ver las tablas y datos "por dentro" como si fuera un Excel,
+# se recomienda descargar el programa gratuito "DB Browser for SQLite":
+# https://sqlitebrowser.org/dl/
+
 
 ==============================================================================
  TIPS ADICIONALES
