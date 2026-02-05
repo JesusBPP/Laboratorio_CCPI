@@ -2,6 +2,9 @@ import pandas as pd
 import pyarrow as pa
 import json
 import io
+import os
+import csv
+
 # Importamos lxml para XML, pero lo manejamos con cuidado por si falta
 try:
     import lxml
@@ -13,18 +16,20 @@ DESCRIPCIÓN DEL ARCHIVO: loader.py
 
 ROL:
 Este módulo es la PUERTA DE ENTRADA de datos al sistema. Su responsabilidad es
-tomar cualquier archivo binario subido por el usuario, detectar su formato
+tomar cualquier archivo binario subido por el usuario o recuperado del disco,
+detectar su formato, limpiar inconsistencias iniciales (como metadatos en CSV)
 y convertirlo exitosamente en un DataFrame de Pandas optimizado con PyArrow.
 
-FUNCIONES:
-1. load_file_to_dataframe(): Función maestra que decide qué sub-función llamar.
-2. Soporte multiformato: CSV, Excel, Parquet, JSON, XML, GeoJSON, TopJSON.
-3. Estandarización: Todos los datos salen convertidos a tipos PyArrow (dtype_backend='pyarrow')
-   para garantizar consistencia y velocidad en el resto del laboratorio.
+FUNCIONES PRINCIPALES:
+1. load_file_to_dataframe(): Procesa archivos subidos (Upload), gestionando extensiones.
+2. load_parquet_from_path(): Recupera archivos ya procesados del disco local.
+3. _detect_header_row_and_delimiter(): (Smart Sniffer) Analiza archivos CSV sucios 
+   para encontrar automáticamente dónde empieza la tabla real, ignorando títulos o logos.
 
-MANEJO DE ERRORES:
-Implementa bloques try-except específicos para dar mensajes claros al usuario
-si un archivo está corrupto o tiene un formato no soportado.
+SOPORTE:
+- Tabulares: CSV, Excel, Parquet.
+- Estructurados: JSON, XML.
+- Geoespaciales: GeoJSON, TopJSON.
 """
 
 def _convert_to_arrow_backend(df: pd.DataFrame) -> pd.DataFrame:
@@ -33,121 +38,140 @@ def _convert_to_arrow_backend(df: pd.DataFrame) -> pd.DataFrame:
     se convierta al motor de memoria eficiente de PyArrow.
     """
     try:
-        # Intenta convertir tipos automáticamente a sus equivalentes en Arrow
-        # (ej. int64 -> int64[pyarrow], object -> string[pyarrow])
         return df.convert_dtypes(dtype_backend="pyarrow")
     except Exception as e:
-        # Si falla la conversión optimizada, devolvemos el df normal pero logueamos el aviso
+        # Si falla la conversión estricta, devolvemos el df estándar pero logueamos
         print(f"Advertencia: No se pudo optimizar a tipos Arrow completamente: {e}")
         return df
 
+def _detect_header_row_and_delimiter(file_buffer, max_scan_lines=50):
+    """
+    Función Inteligente:
+    Escanea las primeras N líneas para detectar metadatos "basura" al inicio.
+    Retorna la fila donde probablemente empieza la tabla y el delimitador usado.
+    """
+    file_buffer.seek(0)
+    lines = []
+    
+    # Leemos una muestra decodificando bytes a string
+    for _ in range(max_scan_lines):
+        line = file_buffer.readline()
+        if not line: break
+        try:
+            lines.append(line.decode('utf-8', errors='ignore'))
+        except:
+            continue
+            
+    file_buffer.seek(0) # Reseteamos el puntero SIEMPRE
+    
+    if not lines:
+        return 0, ','
+
+    delimiters = [',', ';', '\t', '|']
+    best_delimiter = ','
+    max_cols_found = 0
+    best_header_row = 0
+    
+    # Heurística: La fila de encabezado real suele tener muchas columnas
+    # comparado con los títulos del reporte (que suelen tener 1 sola columna)
+    for i, line in enumerate(lines):
+        if not line.strip(): continue # Ignorar líneas vacías
+        
+        for delim in delimiters:
+            # Contamos separadores. Columnas = separadores + 1
+            cols = line.count(delim) + 1
+            
+            # Buscamos la fila que maximice el número de columnas (la tabla real)
+            # Filtramos casos triviales (cols > 1)
+            if cols > max_cols_found and cols > 1:
+                max_cols_found = cols
+                best_header_row = i
+                best_delimiter = delim
+
+    return best_header_row, best_delimiter
+
 def _load_csv(file_buffer) -> pd.DataFrame:
-    """Carga CSV usando el motor de PyArrow para velocidad máxima."""
+    """
+    Carga CSV de forma robusta. Intenta lectura directa primero,
+    si falla, activa el 'Smart Sniffer' para saltar metadatos.
+    """
     try:
-        return pd.read_csv(
-            file_buffer, 
-            engine="pyarrow", 
-            dtype_backend="pyarrow"
-        )
-    except Exception as e:
-        # Fallback: Si falla pyarrow (a veces pasa con codificaciones raras), intentamos engine 'c'
-        file_buffer.seek(0)
-        return pd.read_csv(file_buffer)
+        # Intento 1: Lectura Rápida (PyArrow Engine)
+        # Asumimos archivo limpio (Header en fila 0)
+        return pd.read_csv(file_buffer, engine="pyarrow", dtype_backend="pyarrow")
+    
+    except (pd.errors.ParserError, ValueError):
+        # Intento 2: Falló la lectura. Probablemente hay títulos arriba.
+        # Activamos detección inteligente.
+        try:
+            skip_rows, detected_sep = _detect_header_row_and_delimiter(file_buffer)
+            
+            file_buffer.seek(0)
+            # Usamos engine='python' que es más tolerante con skiprows dinámicos
+            return pd.read_csv(
+                file_buffer, 
+                skiprows=skip_rows, 
+                sep=detected_sep,
+                dtype_backend="pyarrow" # Intentamos mantener la optimización de memoria
+            )
+        except Exception as e:
+            raise ValueError(f"No se pudo leer el CSV. Posible formato corrupto o metadatos complejos. Detalle: {str(e)}")
 
 def _load_excel(file_buffer) -> pd.DataFrame:
-    """Carga Excel (.xlsx). Requiere openpyxl."""
-    # Excel no soporta motor pyarrow nativo al leer, así que leemos normal y luego convertimos
+    """Carga Excel (.xlsx) usando openpyxl."""
+    # Excel suele manejar mejor los headers, pero si falla podríamos implementar lógica similar
     df = pd.read_excel(file_buffer, engine="openpyxl")
-    return df # Se convertirá a Arrow en la función principal
+    return df 
 
 def _load_parquet(file_buffer) -> pd.DataFrame:
-    """Carga Apache Parquet."""
+    """Carga formato Parquet nativo."""
     return pd.read_parquet(file_buffer, engine="pyarrow")
 
 def _load_json(file_buffer) -> pd.DataFrame:
-    """
-    Carga JSON estándar. 
-    Intenta normalizar si es una lista de objetos.
-    """
+    """Carga JSON, intentando aplanar estructuras anidadas."""
     try:
         return pd.read_json(file_buffer, dtype_backend="pyarrow")
     except ValueError:
-        # Si falla, puede ser un JSON anidado complejo.
-        # Reiniciamos el puntero del archivo
         file_buffer.seek(0)
         data = json.load(file_buffer)
-        # Intentamos normalizar (aplanar) el JSON
         return pd.json_normalize(data)
 
 def _load_xml(file_buffer) -> pd.DataFrame:
-    """Carga XML. Requiere librería 'lxml' instalada."""
+    """Carga XML (requiere lxml)."""
     if lxml is None:
-        raise ImportError("La librería 'lxml' es necesaria para leer XML. Agrégala a requirements.txt")
-    
+        raise ImportError("La librería 'lxml' es necesaria para leer XML.")
     return pd.read_xml(file_buffer)
 
 def _load_geojson(file_buffer) -> pd.DataFrame:
-    """
-    Extrae la tabla de atributos (Properties) de un GeoJSON.
-    Ignora la geometría para fines de limpieza de datos tabular.
-    """
+    """Extrae propiedades (tabla de atributos) de un GeoJSON."""
     data = json.load(file_buffer)
-    
     if "features" not in data:
-        raise ValueError("El archivo no parece ser un GeoJSON válido (falta la clave 'features')")
-    
-    # Aplanamos solo la parte de 'properties' de cada feature
-    # Esto crea una tabla con columnas como 'nombre', 'poblacion', etc.
+        raise ValueError("El archivo no parece ser un GeoJSON válido")
     df = pd.json_normalize(data["features"])
-    
-    # Limpiamos prefijos feos si json_normalize los deja (opcional, pero recomendado)
-    # Por ejemplo, transforma "properties.nombre" a "nombre" si es posible
+    # Limpiamos prefijos feos de la conversión
     df.columns = [c.replace("properties.", "") for c in df.columns]
-    
     return df
 
 def _load_topjson(file_buffer) -> pd.DataFrame:
-    """
-    Extrae atributos de TopJSON. Es más complejo porque puede tener múltiples objetos.
-    Busca dentro de 'objects' y extrae sus propiedades.
-    """
+    """Extrae propiedades de un TopJSON iterando sobre sus objetos."""
     data = json.load(file_buffer)
-    
     if "objects" not in data:
-        raise ValueError("El archivo no parece ser TopJSON válido (falta la clave 'objects')")
-    
+        raise ValueError("El archivo no parece ser TopJSON válido")
     all_rows = []
-    
-    # Un TopJSON puede tener varios grupos de geometrías (ej. "estados", "condados")
     for object_name, obj_content in data["objects"].items():
         geometries = obj_content.get("geometries", [])
         for geom in geometries:
-            # Extraemos las propiedades
             props = geom.get("properties", {})
-            # Agregamos una columna para saber de qué grupo vino
             props["_topjson_group"] = object_name 
             all_rows.append(props)
-            
     if not all_rows:
         raise ValueError("No se encontraron propiedades/datos en el archivo TopJSON.")
-        
     return pd.DataFrame(all_rows)
-
 
 def load_file_to_dataframe(file_buffer, file_name: str) -> pd.DataFrame:
     """
-    FUNCIÓN PRINCIPAL
+    FUNCIÓN PRINCIPAL (UPLOADS)
     Identifica la extensión y delega la carga al motor correspondiente.
-    
-    Args:
-        file_buffer: El objeto bytesIO que entrega Streamlit.
-        file_name (str): Nombre del archivo para detectar extensión.
-        
-    Returns:
-        pd.DataFrame: DataFrame con backend PyArrow.
-        
-    Raises:
-        ValueError: Si el formato no es soportado o el archivo está corrupto.
     """
     extension = file_name.split('.')[-1].lower()
     df = None
@@ -166,21 +190,33 @@ def load_file_to_dataframe(file_buffer, file_name: str) -> pd.DataFrame:
         elif extension == 'geojson':
             df = _load_geojson(file_buffer)
         elif extension == 'topjson':
-            df = _load_topjson(file_buffer) # Usamos extensión .topjson por convención
-        # Soporte para topjson si viene como .json pero el usuario sabe que es mapa
+            df = _load_topjson(file_buffer) 
         elif extension == 'json' and 'topo' in file_name.lower(): 
-             # Nota: Esto es ambiguo, por ahora asumimos json normal si la extensión es json
-             pass 
+             pass # Tratamiento especial ambiguo (asumimos json)
         else:
             raise ValueError(f"Formato no soportado: .{extension}")
 
-        # Paso Final: Estandarización a Arrow
-        # Si el loader específico no devolvió Arrow backend (como Excel o JSON), lo forzamos aquí.
+        # Estandarización final a Arrow
         if df is not None:
             return _convert_to_arrow_backend(df)
         
     except Exception as e:
-        # Re-lanzamos el error con contexto para que la UI lo muestre bonito
         raise ValueError(f"Error procesando {file_name}: {str(e)}")
 
-    return pd.DataFrame() # Retorno vacío por seguridad
+    return pd.DataFrame()
+
+def load_parquet_from_path(file_path: str) -> pd.DataFrame:
+    """
+    NUEVA FUNCIÓN: Carga un archivo Parquet directamente desde el disco local.
+    Usada para recuperar archivos guardados en data/parquet_db/
+    """
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"El archivo no existe: {file_path}")
+        
+    try:
+        # Leemos directo del path usando pyarrow
+        df = pd.read_parquet(file_path, engine='pyarrow')
+        # Aseguramos compatibilidad
+        return _convert_to_arrow_backend(df)
+    except Exception as e:
+        raise ValueError(f"Error leyendo archivo local: {str(e)}")

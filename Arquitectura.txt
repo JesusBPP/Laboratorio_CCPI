@@ -1,34 +1,40 @@
-data_lab_project/
+Laboratorio_CCPI/
 │
-├── app.py                   # 🚀 Punto de entrada (Main). Solo configura la página y navegación.
-├── requirements.txt         # Lista de librerías (pandas, numpy, scikit-learn, streamlit, etc.)
-├── .env                     # Variables de entorno (si usas API keys de OpenAI/Gemini, etc.)
+├── .streamlit/
+│   └── config.toml
+|
+├── .env                      # Variables de entorno
+├── app.py                    # Main: Configuración de página y enrutador de pestañas
+├── requirements.txt          # pyarrow, pandas, streamlit, nltk, openpyxl, etc.
 │
-├── data/                    # Almacenamiento local temporal (opcional, si no usas DB)
-│   ├── raw/                 # Archivos subidos originales
-│   └── processed/           # Archivos generados para descargar
+├── data/                     # PERSISTENCIA (El "Disco Duro")
+│   ├── uploads/              # Temporal: Archivos crudos subidos por el usuario
+│   ├── parquet_db/           # Tu "Base de Datos": Archivos .parquet procesados
+│   └── exports/              # Salida: Archivos listos para descargar (.csv, .xlsx)
 │
-├── src/                     # 🧠 CÓDIGO FUENTE (El cerebro del proyecto)
+├── src/
 │   ├── __init__.py
 │   │
-│   ├── core/                # Lógica pura de Python (Backend "Pesado")
+│   ├── io/                   # INPUT/OUTPUT (El puente Disco <-> RAM Arrow)
 │   │   ├── __init__.py
-│   │   ├── data_loader.py   # Funciones para leer CSV, XLSX, limpiar headers, detectar tipos.
-│   │   ├── statistics.py    # Aquí irán las funciones del archivo .py que me pasarás.
-│   │   ├── ai_processor.py  # Funciones de IA (limpieza inteligente, imputación, etc.)
-│   │   └── exporter.py      # Generación de reportes finales y archivos de salida.
+│   │   ├── loader.py         # Lee CSV/Excel/TopJson -> Convierte a PyArrow Table | Debe poder leer archivos JSON (JavaScript Object Notation), Apache Parquet, XML (eXtensible Markup Language), CSV, Excel, GeoJson y topjson.
+│   │   └── writer.py         # Guarda PyArrow Table -> Parquet/CSV
 │   │
-│   ├── database/            # Capa de persistencia (SQLite)
+│   ├── engines/              # MOTORES DE PROCESAMIENTO (Manipulación en RAM)
 │   │   ├── __init__.py
-│   │   ├── db_manager.py    # Conexión y queries a SQLite.
-│   │   └── models.py        # Definición de tablas (Proyectos, Historial de cambios).
+│   │   ├── cleaner.py        # Imputación (Media, Mediana), formatos de columna
+│   │   ├── merger.py         # Lógica de fusión (Append rows vs Join cols)
+│   │   ├── transformer.py    # Melting, One-Hot, Discretización
+│   │   ├── nlp_processor.py  # Stemming/Lemmatization (NLTK/Spacy)
+│   │   └── analyzer.py       # Estadísticas descriptivas (sin alterar datos)
 │   │
-│   └── ui/                  # Componentes de Streamlit (Frontend "Sencillo")
+│   └── ui/                   # INTERFAZ DE USUARIO
 │       ├── __init__.py
-│       ├── sidebar.py       # Menú lateral, carga de archivos.
-│       ├── dashboard.py     # Visualización de datos (gráficas).
-│       └── transformations.py # Interfaz para aplicar las funciones estadísticas.
+│       ├── sidebar_manager.py # Controla la navegación y subida de archivos
+│       ├── tab_upload.py      # Pestaña 1: Lógica visual de carga y fusión
+│       ├── tab_viewer.py      # Pestaña 2: Visualización y filtros
+│       └── tab_cleaner.py     # Pestaña 2 (Subsección): Herramientas de limpieza
 │
-└── utils/                   # Utilidades generales
-    ├── helpers.py           # Funciones pequeñas de ayuda (formato de fecha, logs).
-    └── state_manager.py     # Manejo del st.session_state (CRÍTICO en Streamlit).
+└── utils/
+    ├── session.py            # Gestión crítica de st.session_state (Mantiene Arrow vivo)
+    └── formatters.py         # Ayudas visuales para Streamlit
